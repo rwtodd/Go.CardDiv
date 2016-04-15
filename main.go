@@ -9,6 +9,7 @@ import (
         "image/draw"
         "image/jpeg"
 	"archive/zip"
+        "github.com/nfnt/resize"
 )
 
 func main() {
@@ -87,6 +88,9 @@ func threeHandler(w http.ResponseWriter, r *http.Request) {
        log.Print(err)
        return
     }
+
+    // resize it...
+    cardImg = resize.Resize(uint(cardWidth),uint(cardHeight),cardImg,resize.Bicubic)
     
     draw.Draw(answer, cardRect, cardImg, image.Pt(0,0), draw.Src)
   }
