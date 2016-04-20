@@ -34,5 +34,5 @@ func (sc *sidewaysCard) Bounds() image.Rectangle {
 // Translate the points to the base image turned on its side.
 func (sc *sidewaysCard) At(x, y int) color.Color {
 	var b = sc.Image.Bounds()
-	return sc.Image.At(b.Max.X - y + b.Min.X, x)
+	return sc.Image.At(b.Max.X-y+b.Min.X, x)
 }
