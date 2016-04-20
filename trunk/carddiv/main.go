@@ -59,8 +59,8 @@ func rowHandler(w http.ResponseWriter, r *http.Request) {
 		desiredCards,
 		desiredWidth,
 		desiredShowing,
-                desiredReversals)
-	revN := 1.0 - float64(desiredReversals) / 100.0
+		desiredReversals)
+	revN := 1.0 - float64(desiredReversals)/100.0
 
 	deck, err := requestDeck(desiredDeck + ".zip")
 	if err != nil {
@@ -100,7 +100,7 @@ func rowHandler(w http.ResponseWriter, r *http.Request) {
 		cardImg, err := deck.Image(c, cardWidth, co)
 		if err != nil {
 			log.Print(err)
-			return
+			cardImg = image.Black
 		}
 
 		draw.Draw(answer, cardRect, cardImg, image.ZP, draw.Src)
@@ -123,8 +123,8 @@ func celticHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("CELTIC: %s Width: %d Reversals: %d%%",
 		desiredDeck,
 		desiredWidth,
-                desiredReversals)
-        revN := 1.0 - float64(desiredReversals) / 100.0
+		desiredReversals)
+	revN := 1.0 - float64(desiredReversals)/100.0
 
 	deck, err := requestDeck(desiredDeck + ".zip")
 	if err != nil {
@@ -132,14 +132,14 @@ func celticHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-        // the overall image is 7 cards wide and 4 tall:
-        //  0123456
-        // |  x   x|
-        // |x x x x|   the "cross" part is lowered by 
-        // |  x   x|   half a card, relative to this pic.
-        // |      x|
+	// the overall image is 7 cards wide and 4 tall:
+	//  0123456
+	// |  x   x|
+	// |x x x x|   the "cross" part is lowered by
+	// |  x   x|   half a card, relative to this pic.
+	// |      x|
 	cardWidth := uint(float64(desiredWidth) / 7.0)
-        cardSize := image.Point{int(cardWidth), int(deck.CardHeight(cardWidth))} 
+	cardSize := image.Point{int(cardWidth), int(deck.CardHeight(cardWidth))}
 
 	// now, shuffle the deck
 	selected, err := deck.Shuffled(10)
@@ -150,95 +150,72 @@ func celticHandler(w http.ResponseWriter, r *http.Request) {
 
 	// now, create the image
 	actualWidth := 7 * cardSize.X
-        actualHeight := 4 * cardSize.Y
+	actualHeight := 4 * cardSize.Y
 	answer := image.NewRGBA(image.Rect(0, 0, actualWidth, actualHeight))
 
-        // nested helper function to create the card images
-        getImage := func(which int, side bool) (image.Image, error) {
-           var co cardOpts
-	   if rand.Float64() >= revN {
-		co.reversed = true
-	   }
-           co.onSide = side
-           return  deck.Image(selected[which], cardWidth, co)
-        }
+	// nested helper function to create the card images
+	getImage := func(which int, side bool) image.Image {
+		var co cardOpts
+		if rand.Float64() >= revN {
+			co.reversed = true
+		}
+		co.onSide = side
+		img, err := deck.Image(selected[which], cardWidth, co)
+		if err != nil {
+			log.Print(err)
+			img = image.Black
+		}
+		return img
+	}
 
-        // draw the cross...
-        // 1. middle
-        cardImg, err := getImage(0, false) 
-        if err != nil {
-		log.Print(err)
-		return
-        }
-        midCard := image.Point{ (actualWidth - 2*cardSize.X)/2, 
-                                (actualHeight - cardSize.Y)/2 }
-        cardRect :=  image.Rectangle{midCard, midCard.Add(cardSize)}
-	draw.Draw(answer, cardRect, cardImg, image.ZP, draw.Src)
-
-        // 2. crosses it
-        cardImg, err = getImage(1, true) 
-        if err != nil {
-		log.Print(err)
-		return
-        }
-        cardLoc := image.Point{ (actualWidth - cardSize.X - cardSize.Y)/2,
-                                (actualHeight - cardSize.X)/2 }
-        cardRect = image.Rectangle{cardLoc, 
-                                   cardLoc.Add(image.Pt(cardSize.Y,cardSize.X))}
-	draw.Draw(answer, cardRect, cardImg, image.ZP, draw.Src)
-         
-        // 3. below it
-        cardImg, err = getImage(2, false) 
-        if err != nil {
-		log.Print(err)
-		return
-        }
-        cardLoc = midCard.Add(image.Pt(0,cardSize.Y + cardSize.Y/3)) 
-        cardRect = image.Rectangle{cardLoc, cardLoc.Add(cardSize)} 
-	draw.Draw(answer, cardRect, cardImg, image.ZP, draw.Src)
-        
-        // 4. Waning Influence
-        cardImg, err = getImage(3, false) 
-        if err != nil {
-		log.Print(err)
-		return
-        }
-        cardLoc = midCard.Sub(image.Pt(cardSize.X*2,0)) 
-        cardRect = image.Rectangle{cardLoc, cardLoc.Add(cardSize)} 
+	// draw the cross...
+	// 1. middle
+	cardImg := getImage(0, false)
+	midCard := image.Point{(actualWidth - 2*cardSize.X) / 2,
+		(actualHeight - cardSize.Y) / 2}
+	cardRect := image.Rectangle{midCard, midCard.Add(cardSize)}
 	draw.Draw(answer, cardRect, cardImg, image.ZP, draw.Src)
 
-        // 5. New Energy 
-        cardImg, err = getImage(4, false) 
-        if err != nil {
-		log.Print(err)
-		return
-        }
-        cardLoc = midCard.Sub(image.Pt(0,cardSize.Y + cardSize.Y/3)) 
-        cardRect = image.Rectangle{cardLoc, cardLoc.Add(cardSize)} 
+	// 2. crosses it
+	cardImg = getImage(1, true)
+	cardLoc := image.Point{(actualWidth - cardSize.X - cardSize.Y) / 2,
+		(actualHeight - cardSize.X) / 2}
+	cardRect = image.Rectangle{cardLoc,
+		cardLoc.Add(image.Pt(cardSize.Y, cardSize.X))}
 	draw.Draw(answer, cardRect, cardImg, image.ZP, draw.Src)
 
-        // 6. Waxing Influence
-        cardImg, err = getImage(5, false) 
-        if err != nil {
-		log.Print(err)
-		return
-        }
-        cardLoc = midCard.Add(image.Pt(cardSize.X*2,0)) 
-        cardRect = image.Rectangle{cardLoc, cardLoc.Add(cardSize)} 
+	// 3. below it
+	cardImg = getImage(2, false)
+	cardLoc = midCard.Add(image.Pt(0, cardSize.Y+cardSize.Y/3))
+	cardRect = image.Rectangle{cardLoc, cardLoc.Add(cardSize)}
 	draw.Draw(answer, cardRect, cardImg, image.ZP, draw.Src)
 
-        // 7 through 10...
-        cardLoc = image.Point{cardSize.X*6,cardSize.Y*3}
-        for idx := 6; idx < 10; idx++ {
-           cardImg, err = getImage(idx, false) 
-           if err != nil {
-		log.Print(err)
-		return
-           }
-           cardRect = image.Rectangle{cardLoc, cardLoc.Add(cardSize)} 
-	   draw.Draw(answer, cardRect, cardImg, image.ZP, draw.Src)
-           cardLoc = cardLoc.Sub(image.Pt(0,cardSize.Y)) 
-        } 
+	// 4. Waning Influence
+	cardImg = getImage(3, false)
+	cardLoc = midCard.Sub(image.Pt(cardSize.X*2, 0))
+	cardRect = image.Rectangle{cardLoc, cardLoc.Add(cardSize)}
+	draw.Draw(answer, cardRect, cardImg, image.ZP, draw.Src)
+
+	// 5. New Energy
+	cardImg = getImage(4, false)
+	cardLoc = midCard.Sub(image.Pt(0, cardSize.Y+cardSize.Y/3))
+	cardRect = image.Rectangle{cardLoc, cardLoc.Add(cardSize)}
+	draw.Draw(answer, cardRect, cardImg, image.ZP, draw.Src)
+
+	// 6. Waxing Influence
+	cardImg = getImage(5, false)
+	cardLoc = midCard.Add(image.Pt(cardSize.X*2, 0))
+	cardRect = image.Rectangle{cardLoc, cardLoc.Add(cardSize)}
+	draw.Draw(answer, cardRect, cardImg, image.ZP, draw.Src)
+
+	// 7 through 10...
+	cardLoc = image.Point{cardSize.X * 6, cardSize.Y * 3}
+	for idx := 6; idx < 10; idx++ {
+		cardImg = getImage(idx, false)
+		cardRect = image.Rectangle{cardLoc, cardLoc.Add(cardSize)}
+		draw.Draw(answer, cardRect, cardImg, image.ZP, draw.Src)
+		cardLoc = cardLoc.Sub(image.Pt(0, cardSize.Y))
+	}
 
 	err = jpeg.Encode(w, answer, &jpeg.Options{Quality: 80})
 	if err != nil {
