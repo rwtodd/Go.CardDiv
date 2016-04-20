@@ -78,7 +78,7 @@ type cardOpts struct {
 	onSide   bool
 }
 
-func (dk *deck) Image(which int, width uint, options *cardOpts) (image.Image, error) {
+func (dk *deck) Image(which int, width uint, options cardOpts) (image.Image, error) {
 	if which > len(dk.imgs) {
 		return nil, fmt.Errorf("%d is greater than %d images in deck!", which, len(dk.imgs))
 	}
@@ -89,7 +89,8 @@ func (dk *deck) Image(which int, width uint, options *cardOpts) (image.Image, er
 	}
 	defer img.Close()
 
-	cardImg, err := jpeg.Decode(img)
+	var cardImg image.Image
+	cardImg, err = jpeg.Decode(img)
 	if err != nil {
 		return nil, err
 	}
@@ -98,9 +99,12 @@ func (dk *deck) Image(which int, width uint, options *cardOpts) (image.Image, er
 	cardImg = resize.Resize(width, dk.CardHeight(width), cardImg, resize.Bicubic)
 
 	// possibly rotate the image...
-	if options != nil && (options.reversed || options.onSide) {
-		// FIXME
-		return nil, fmt.Errorf("Options not supported yet")
+	if options.reversed {
+		cardImg = &reversedCard{cardImg}
+	}
+
+	if options.onSide {
+		cardImg = &sidewaysCard{cardImg}
 	}
 
 	return cardImg, nil

@@ -87,7 +87,11 @@ func rowHandler(w http.ResponseWriter, r *http.Request) {
 		cardRect := image.Rect(xloc, 0, xloc+int(cardWidth), int(cardHeight))
 
 		// open the card...
-		cardImg, err := deck.Image(c, cardWidth, nil)
+		var co cardOpts
+		if rand.Float64() >= 0.5 {
+			co.reversed = true
+		}
+		cardImg, err := deck.Image(c, cardWidth, co)
 		if err != nil {
 			log.Print(err)
 			return
