@@ -52,12 +52,15 @@ func rowHandler(w http.ResponseWriter, r *http.Request) {
 	desiredWidth, _ := strconv.Atoi(getOrElse(r.Form["width"], "600"))
 	desiredCards, _ := strconv.Atoi(getOrElse(r.Form["cards"], "3"))
 	desiredShowing, _ := strconv.Atoi(getOrElse(r.Form["pct"], "100"))
+	desiredReversals, _ := strconv.Atoi(getOrElse(r.Form["rev"], "50"))
 	desiredDeck := getOrElse(r.Form["deck"], "Lenormand")
-	log.Printf("ROW:  Deck: %s Cards: %d  Width: %d  Showing: %d%%",
+	log.Printf("ROW: %s Cards: %d  Width: %d  Showing: %d%% Reversals: %d%%",
 		desiredDeck,
 		desiredCards,
 		desiredWidth,
-		desiredShowing)
+		desiredShowing,
+                desiredReversals)
+	revN := 1.0 - float64(desiredReversals) / 100.0
 
 	deck, err := requestDeck(desiredDeck + ".zip")
 	if err != nil {
@@ -91,7 +94,7 @@ func rowHandler(w http.ResponseWriter, r *http.Request) {
 
 		// open the card...
 		var co cardOpts
-		if rand.Float64() >= 0.5 {
+		if rand.Float64() >= revN {
 			co.reversed = true
 		}
 		cardImg, err := deck.Image(c, cardWidth, co)
@@ -115,10 +118,13 @@ func celticHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	desiredWidth, _ := strconv.Atoi(getOrElse(r.Form["width"], "600"))
+	desiredReversals, _ := strconv.Atoi(getOrElse(r.Form["rev"], "50"))
 	desiredDeck := getOrElse(r.Form["deck"], "Lenormand")
-	log.Printf("CELTIC:  Deck: %s Width: %d",
+	log.Printf("CELTIC: %s Width: %d Reversals: %d%%",
 		desiredDeck,
-		desiredWidth)
+		desiredWidth,
+                desiredReversals)
+        revN := 1.0 - float64(desiredReversals) / 100.0
 
 	deck, err := requestDeck(desiredDeck + ".zip")
 	if err != nil {
@@ -150,7 +156,7 @@ func celticHandler(w http.ResponseWriter, r *http.Request) {
         // nested helper function to create the card images
         getImage := func(which int, side bool) (image.Image, error) {
            var co cardOpts
-	   if rand.Float64() >= 0.5 {
+	   if rand.Float64() >= revN {
 		co.reversed = true
 	   }
            co.onSide = side
