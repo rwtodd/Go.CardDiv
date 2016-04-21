@@ -30,10 +30,15 @@ func requestDeck(name string) (*deck, error) {
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
+	http.HandleFunc("/", mainHandler)
 	http.HandleFunc("/row/", rowHandler)
 	http.HandleFunc("/houses/", houseHandler)
 	http.HandleFunc("/celtic/", celticHandler)
 	log.Fatal(http.ListenAndServe("localhost:8000", nil))
+}
+
+func mainHandler(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "main.html")
 }
 
 func getOrElse(lst []string, def string) string {
