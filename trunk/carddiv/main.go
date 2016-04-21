@@ -1,15 +1,19 @@
 package main
 
 import (
+	"flag"
 	"image"
 	"image/draw"
 	"image/jpeg"
 	"log"
 	"math/rand"
 	"net/http"
+	"net/http/fcgi"
 	"strconv"
 	"time"
 )
+
+var local = flag.String("local", "", "serve as webserver, example: 0.0.0.0:8000")
 
 // hold a global cached deck between requests...
 var curDeck *deck
@@ -28,13 +32,23 @@ func requestDeck(name string) (*deck, error) {
 }
 
 func main() {
+	flag.Parse()
 	rand.Seed(time.Now().UnixNano())
 
 	http.HandleFunc("/", mainHandler)
 	http.HandleFunc("/row/", rowHandler)
 	http.HandleFunc("/houses/", houseHandler)
 	http.HandleFunc("/celtic/", celticHandler)
-	log.Fatal(http.ListenAndServe("localhost:8000", nil))
+
+	var err error
+	if *local != "" {
+		err = http.ListenAndServe("localhost:8000", nil)
+	} else {
+		err = fcgi.Serve(nil, nil)
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func mainHandler(w http.ResponseWriter, r *http.Request) {
