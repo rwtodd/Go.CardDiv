@@ -31,6 +31,7 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	http.HandleFunc("/row/", rowHandler)
+	http.HandleFunc("/houses/", houseHandler)
 	http.HandleFunc("/celtic/", celticHandler)
 	log.Fatal(http.ListenAndServe("localhost:8000", nil))
 }
@@ -215,6 +216,91 @@ func celticHandler(w http.ResponseWriter, r *http.Request) {
 		cardRect = image.Rectangle{cardLoc, cardLoc.Add(cardSize)}
 		draw.Draw(answer, cardRect, cardImg, image.ZP, draw.Src)
 		cardLoc = cardLoc.Sub(image.Pt(0, cardSize.Y))
+	}
+
+	err = jpeg.Encode(w, answer, &jpeg.Options{Quality: 80})
+	if err != nil {
+		log.Print(err)
+	}
+}
+
+// houseHandler generates an image of cards around the astrological houses
+func houseHandler(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		log.Print(err)
+	}
+
+	desiredWidth, _ := strconv.Atoi(getOrElse(r.Form["width"], "600"))
+	desiredReversals, _ := strconv.Atoi(getOrElse(r.Form["rev"], "50"))
+	desiredDeck := getOrElse(r.Form["deck"], "Lenormand")
+	log.Printf("HOUSES: %s Width: %d Reversals: %d%%",
+		desiredDeck,
+		desiredWidth,
+		desiredReversals)
+	revN := 1.0 - float64(desiredReversals)/100.0
+
+	deck, err := requestDeck(desiredDeck + ".zip")
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	// the overall image is 7 cards wide and 4 tall:
+	//  0123456
+	// |   a   |
+	// |  b 9  |
+	// | c   8 |
+	// |1     7|
+	// | 2   6 |
+	// |  3 5  |
+	// |   4   |
+	cardWidth := uint(float64(desiredWidth) / 7.0)
+	cardSize := image.Point{int(cardWidth), int(deck.CardHeight(cardWidth))}
+	halfHeight := cardSize.Y / 2
+	design := []image.Point{image.Pt(0, 3*halfHeight),
+		image.Pt(cardSize.X, 4*halfHeight),
+		image.Pt(2*cardSize.X, 5*halfHeight),
+		image.Pt(3*cardSize.X, 6*halfHeight),
+		image.Pt(4*cardSize.X, 5*halfHeight),
+		image.Pt(5*cardSize.X, 4*halfHeight),
+		image.Pt(6*cardSize.X, 3*halfHeight),
+		image.Pt(5*cardSize.X, 2*halfHeight),
+		image.Pt(4*cardSize.X, halfHeight),
+		image.Pt(3*cardSize.X, 0),
+		image.Pt(2*cardSize.X, halfHeight),
+		image.Pt(1*cardSize.X, 2*halfHeight)}
+
+	// now, shuffle the deck
+	selected, err := deck.Shuffled(12)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	// now, create the image
+	actualWidth := 7 * cardSize.X
+	actualHeight := 4 * cardSize.Y
+	answer := image.NewRGBA(image.Rect(0, 0, actualWidth, actualHeight))
+
+	// nested helper function to create the card images
+	getImage := func(which int) image.Image {
+		var co cardOpts
+		if rand.Float64() >= revN {
+			co.reversed = true
+		}
+		co.onSide = false
+		img, err := deck.Image(selected[which], cardWidth, co)
+		if err != nil {
+			log.Print(err)
+			img = image.Black
+		}
+		return img
+	}
+
+	for idx, v := range design {
+		cardImg := getImage(idx)
+		cardRect := image.Rectangle{v, v.Add(cardSize)}
+		draw.Draw(answer, cardRect, cardImg, image.ZP, draw.Src)
 	}
 
 	err = jpeg.Encode(w, answer, &jpeg.Options{Quality: 80})
