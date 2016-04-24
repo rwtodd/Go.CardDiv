@@ -69,7 +69,7 @@ func (dk *deck) Name() string { return dk.name }
 
 func (dk *deck) NumCards() int { return len(dk.imgs) }
 
-func (dk *deck) CardHeight(width uint) uint { return uint(float64(width) / dk.ratio) }
+func (dk *deck) CardHeight(width int) int { return int(float64(width) / dk.ratio) }
 
 func (dk *deck) Close() error { return dk.zfile.Close() }
 
@@ -78,7 +78,7 @@ type cardOpts struct {
 	onSide   bool
 }
 
-func (dk *deck) Image(which int, width uint, options cardOpts) (image.Image, error) {
+func (dk *deck) Image(which int, width int, options cardOpts) (image.Image, error) {
 	if which > len(dk.imgs) {
 		return nil, fmt.Errorf("%d is greater than %d images in deck!", which, len(dk.imgs))
 	}
@@ -96,7 +96,7 @@ func (dk *deck) Image(which int, width uint, options cardOpts) (image.Image, err
 	}
 
 	// resize image ...
-	cardImg = resize.Resize(width, dk.CardHeight(width), cardImg, resize.Bicubic)
+	cardImg = resize.Resize(uint(width), uint(dk.CardHeight(width)), cardImg, resize.Bicubic)
 
 	// possibly rotate the image...
 	if options.reversed {

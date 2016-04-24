@@ -39,6 +39,7 @@ func main() {
 	http.HandleFunc("/row/", rowHandler)
 	http.HandleFunc("/houses/", houseHandler)
 	http.HandleFunc("/celtic/", celticHandler)
+	http.HandleFunc("/tableau/", tableauHandler)
 
 	var err error
 	if *local != "" {
@@ -60,6 +61,78 @@ func getOrElse(lst []string, def string) string {
 		def = lst[0]
 	}
 	return def
+}
+
+// tableauHandler generates an image of cards in a "Grand Tableau",
+// of 4 rows of 8 and 1 row of 4
+func tableauHandler(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		log.Print(err)
+	}
+
+	desiredWidth, _ := strconv.Atoi(getOrElse(r.Form["width"], "600"))
+	desiredReversals, _ := strconv.Atoi(getOrElse(r.Form["rev"], "50"))
+	desiredDeck := getOrElse(r.Form["deck"], "Lenormand")
+	log.Printf("TABLEAU: %s Width: %d Reversals: %d%%",
+		desiredDeck,
+		desiredWidth,
+		desiredReversals)
+	revN := 1.0 - float64(desiredReversals)/100.0
+
+	deck, err := requestDeck(desiredDeck + ".zip")
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	cardWidth := int(float64(desiredWidth) / 8.0)
+	cardHeight := deck.CardHeight(cardWidth)
+
+	// now, shuffle the deck
+	selected, err := deck.Shuffled(36)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	// now, create the image
+	actualWidth := int(8.0 * float64(cardWidth))
+	actualHeight := int(5.0 * float64(cardHeight))
+	answer := image.NewRGBA(image.Rect(0, 0, actualWidth, actualHeight))
+
+	for idx, row := range [][]int{selected[:8],
+		selected[8:16],
+		selected[16:24],
+		selected[24:32],
+		selected[32:]} {
+		yloc := idx * cardHeight
+		for pos, c := range row {
+			xloc := pos * cardWidth
+			if idx == 4 {
+				xloc += (2 * cardWidth)
+			}
+
+			cardRect := image.Rect(xloc, yloc, xloc+cardWidth, yloc+cardHeight)
+
+			// open the card...
+			var co cardOpts
+			if rand.Float64() >= revN {
+				co.reversed = true
+			}
+			cardImg, err := deck.Image(c, cardWidth, co)
+			if err != nil {
+				log.Print(err)
+				cardImg = image.Black
+			}
+
+			draw.Draw(answer, cardRect, cardImg, image.ZP, draw.Src)
+		}
+	}
+
+	err = jpeg.Encode(w, answer, &jpeg.Options{Quality: 80})
+	if err != nil {
+		log.Print(err)
+	}
 }
 
 // rowHandler generates an image of cards in a row, with optional
@@ -94,7 +167,7 @@ func rowHandler(w http.ResponseWriter, r *http.Request) {
 	// (since the last card is fully visible)
 	showPct := float64(desiredShowing) / 100.0
 	effectiveCards := 1.0 + float64(desiredCards-1)*showPct
-	cardWidth := uint(float64(desiredWidth) / effectiveCards)
+	cardWidth := int(float64(desiredWidth) / effectiveCards)
 	cardHeight := deck.CardHeight(cardWidth)
 	showingWidth := int(float64(cardWidth) * showPct)
 
@@ -107,10 +180,10 @@ func rowHandler(w http.ResponseWriter, r *http.Request) {
 
 	// now, create the image
 	actualWidth := int(effectiveCards * float64(cardWidth))
-	answer := image.NewRGBA(image.Rect(0, 0, actualWidth, int(cardHeight)))
+	answer := image.NewRGBA(image.Rect(0, 0, actualWidth, cardHeight))
 	for idx, c := range selected {
 		xloc := idx * showingWidth
-		cardRect := image.Rect(xloc, 0, xloc+int(cardWidth), int(cardHeight))
+		cardRect := image.Rect(xloc, 0, xloc+cardWidth, cardHeight)
 
 		// open the card...
 		var co cardOpts
@@ -158,8 +231,8 @@ func celticHandler(w http.ResponseWriter, r *http.Request) {
 	// |x x x x|   the "cross" part is lowered by
 	// |  x   x|   half a card, relative to this pic.
 	// |      x|
-	cardWidth := uint(float64(desiredWidth) / 7.0)
-	cardSize := image.Point{int(cardWidth), int(deck.CardHeight(cardWidth))}
+	cardWidth := int(float64(desiredWidth) / 7.0)
+	cardSize := image.Point{cardWidth, deck.CardHeight(cardWidth)}
 
 	// now, shuffle the deck
 	selected, err := deck.Shuffled(10)
@@ -273,8 +346,8 @@ func houseHandler(w http.ResponseWriter, r *http.Request) {
 	// | 2   6 |
 	// |  3 5  |
 	// |   4   |
-	cardWidth := uint(float64(desiredWidth) / 7.0)
-	cardSize := image.Point{int(cardWidth), int(deck.CardHeight(cardWidth))}
+	cardWidth := int(float64(desiredWidth) / 7.0)
+	cardSize := image.Point{cardWidth, deck.CardHeight(cardWidth)}
 	halfHeight := cardSize.Y / 2
 	design := []image.Point{image.Pt(0, 3*halfHeight),
 		image.Pt(cardSize.X, 4*halfHeight),
