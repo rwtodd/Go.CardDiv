@@ -17,7 +17,13 @@ import (
 var local = flag.String("local", "", "serve as webserver, example: 0.0.0.0:8000")
 
 // hold a global cached deck between requests...
-var curDeck *deck
+type cacheEnt struct {
+	rqno int
+	dck  *deck
+}
+
+var requestCount int
+var deckCache map[string]cacheEnt
 var deckMut sync.Mutex
 
 func requestDeck(name string) (*deck, error) {
@@ -25,21 +31,57 @@ func requestDeck(name string) (*deck, error) {
 	var err error
 
 	deckMut.Lock()
-	if curDeck != nil && curDeck.Name() == name {
-		answer = curDeck
-	} else {
 
-		if curDeck != nil {
-			curDeck.Close()
+	// update a request count, which wraps at 10k
+	requestCount++
+	if requestCount > 9999 {
+		requestCount = 1
+	}
+
+	if deckCache == nil {
+		deckCache = make(map[string]cacheEnt)
+	}
+
+	ent, ok := deckCache[name]
+	if !ok {
+		answer, err = NewDeck(name)
+		if err == nil {
+			ent = cacheEnt{requestCount, answer}
+			deckCache[name] = ent
 		}
-		curDeck, err = NewDeck(name)
-		if err != nil {
-			curDeck, err = NewDeck("Poker.zip") // fall back on Poker deck...
+	}
+
+	// update the request number...
+	if err == nil {
+		ent.rqno = requestCount
+		deckCache[name] = ent
+
+		// record the deck to return:
+		answer = ent.dck
+	}
+
+	// clean out any old decks...
+	for key, value := range deckCache {
+
+		var difference int // abs difference, rqno and requestCount
+		if value.rqno <= requestCount {
+			difference = requestCount - value.rqno
+		} else {
+			difference = (9999 + requestCount) - value.rqno
 		}
-		answer = curDeck
+
+		if difference > 10 {
+			value.dck.Close()
+			delete(deckCache, key)
+		}
 
 	}
 	deckMut.Unlock()
+
+	// try to fall back on the poker deck... it's safe!
+	if err != nil && name != "Poker.zip" {
+		answer, err = requestDeck("Poker.zip")
+	}
 
 	return answer, err
 }
@@ -85,7 +127,7 @@ func tableauHandler(w http.ResponseWriter, r *http.Request) {
 
 	desiredWidth, _ := strconv.Atoi(getOrElse(r.Form["width"], "600"))
 	desiredReversals, _ := strconv.Atoi(getOrElse(r.Form["rev"], "50"))
-	desiredDeck := getOrElse(r.Form["deck"], "Lenormand")
+	desiredDeck := getOrElse(r.Form["deck"], "Poker")
 	log.Printf("TABLEAU: %s Width: %d Reversals: %d%%",
 		desiredDeck,
 		desiredWidth,
