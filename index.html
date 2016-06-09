@@ -17,19 +17,19 @@ function draw() {
 <h1>Card Divination</h1>
 <form id="userInput" onSubmit="return draw()"> 
 Layout: <select name="layout">
-           <option value="/row/">Row of Cards</option>
-           <option value="/celtic/">Celtic Cross</option>
-           <option value="/houses/">12 Astrological Houses</option>
-           <option value="/tableau/">Grand Tableau</option>
+           <option value="/carddiv/row/">Row of Cards</option>
+           <option value="/carddiv/celtic/">Celtic Cross</option>
+           <option value="/carddiv/houses/">12 Astrological Houses</option>
+           <option value="/carddiv/tableau/">Grand Tableau</option>
         </select><br>
 Width: <input type="number" name="width" value="600"><br>
-Deck: <input type="text" name="deck" value="Waite"><br>
+Deck: <input type="text" name="deck" value="Poker"><br>
 Cards: <input type="number" name="cards" value="3"><br>
 Pct. Showing: <input type="number" name="pct" value="100"><br>
 Pct. Chance of Reversals: <input type="number" name="rev" value="50"><br>
 <input type="submit" value="Draw Cards">
 </form>
 <hr>
-<img id="picture" src="/row/?deck=Waite">
+<img id="picture" src="/carddiv/row/?deck=Poker">
 </body>
 </html>

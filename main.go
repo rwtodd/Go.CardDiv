@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/fcgi"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -17,18 +18,30 @@ var local = flag.String("local", "", "serve as webserver, example: 0.0.0.0:8000"
 
 // hold a global cached deck between requests...
 var curDeck *deck
+var deckMut sync.Mutex
 
 func requestDeck(name string) (*deck, error) {
-	if curDeck != nil && curDeck.Name() == name {
-		return curDeck, nil
-	}
-
-	if curDeck != nil {
-		curDeck.Close()
-	}
+	var answer *deck
 	var err error
-	curDeck, err = NewDeck(name)
-	return curDeck, err
+
+	deckMut.Lock()
+	if curDeck != nil && curDeck.Name() == name {
+		answer = curDeck
+	} else {
+
+		if curDeck != nil {
+			curDeck.Close()
+		}
+		curDeck, err = NewDeck(name)
+		if err != nil {
+			curDeck, err = NewDeck("Poker.zip") // fall back on Poker deck...
+		}
+		answer = curDeck
+
+	}
+	deckMut.Unlock()
+
+	return answer, err
 }
 
 func main() {
@@ -36,10 +49,10 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	http.HandleFunc("/", mainHandler)
-	http.HandleFunc("/row/", rowHandler)
-	http.HandleFunc("/houses/", houseHandler)
-	http.HandleFunc("/celtic/", celticHandler)
-	http.HandleFunc("/tableau/", tableauHandler)
+	http.HandleFunc("/carddiv/row/", rowHandler)
+	http.HandleFunc("/carddiv/houses/", houseHandler)
+	http.HandleFunc("/carddiv/celtic/", celticHandler)
+	http.HandleFunc("/carddiv/tableau/", tableauHandler)
 
 	var err error
 	if *local != "" {
@@ -53,7 +66,7 @@ func main() {
 }
 
 func mainHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "main.html")
+	http.ServeFile(w, r, "index.html")
 }
 
 func getOrElse(lst []string, def string) string {
