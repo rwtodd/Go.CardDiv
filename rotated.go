@@ -1,4 +1,4 @@
-package main // import "go.waywardcode.com/carddiv"
+package main
 
 import (
 	"image"
