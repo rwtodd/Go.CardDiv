@@ -1,8 +1,46 @@
 <html>
 <head><title>Card Divination</title>
-<script>
+<link rel="stylesheet" type="text/css" href="/carddiv/cdiv.css">
+<script type="text/javascript">
+var optparm = new Map();
+function get_config() {
+  var xmlhttp = new XMLHttpRequest();
+  xmlhttp.onreadystatechange = function() {
+     if(xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+         var config = JSON.parse(xmlhttp.responseText);
+         var selections = document.getElementById("userInput").elements['layout'];
+         for(var i = 0; i < config.length; i++) {
+             selections.options.add(new Option(config[i].Display, config[i].ID));
+             optparm.set(config[i].ID, config[i].Params)
+         }
+	 changeLayout();
+     }
+  };
+  xmlhttp.open("GET", "/carddiv/cfg", true);
+  xmlhttp.send();
+}
+window.onload = get_config;
+
+function changeLayout() {
+  // when layouts change, alter the visible optional params...
+  var theForm = document.getElementById("userInput").elements;
+  var selection = theForm['layout'].value;
+
+  // turn off all optional params first...
+  var opts = document.getElementsByClassName("optional");
+  for (var i = 0; i < opts.length; i++) {
+    opts[i].style.display = "none";
+  }
+
+  // now turn on all the enabled params
+  var parmlist = optparm.get(selection);
+  for (var i = 0; i < parmlist.length; i++) {
+    theForm[parmlist[i]].parentElement.style.display = "block";
+  }
+}
+
 function draw() {
-   var form = document.getElementById("userInput")
+  var form = document.getElementById("userInput")
    document.getElementById("picture").src = form.elements['layout'].value + 
        "?deck=" + form.elements['deck'].value +
        "&width=" + form.elements['width'].value +
@@ -14,22 +52,32 @@ function draw() {
 </script>
 </head>
 <body>
+<div id="controls">
 <h1>Card Divination</h1>
-<form id="userInput" onSubmit="return draw()"> 
-Layout: <select name="layout">
-           <option value="/carddiv/row/">Row of Cards</option>
-           <option value="/carddiv/celtic/">Celtic Cross</option>
-           <option value="/carddiv/houses/">12 Astrological Houses</option>
-           <option value="/carddiv/tableau/">Grand Tableau</option>
-        </select><br>
-Width: <input type="number" name="width" value="600"><br>
-Deck: <input type="text" name="deck" value="Poker"><br>
-Cards: <input type="number" name="cards" value="3"><br>
-Pct. Showing: <input type="number" name="pct" value="100"><br>
-Pct. Chance of Reversals: <input type="number" name="rev" value="50"><br>
-<input type="submit" value="Draw Cards">
+<form id="userInput"> 
+<div class="param">
+<label>Layout:</label><select name="layout" onchange="changeLayout();"> </select>
+</div>
+<div class="param">
+<label>Width:</label><input type="number" name="width" value="600">
+</div>
+<div class="param">
+<label>Deck:</label><input type="text" name="deck" value="Poker">
+</div>
+<div class="param optional">
+<label>Cards:</label><input type="number" name="cards" value="3">
+</div>
+<div class="param optional">
+<label>Pct. Showing:</label><input type="number" name="pct" value="100">
+</div>
+<div class="param">
+<label>Reversal %:</label><input type="number" name="rev" value="50">
+</div>
 </form>
-<hr>
-<img id="picture" src="/carddiv/row/?deck=Poker">
+<button onclick="draw()">Draw Cards</button>
+</div>
+<div id="layout">
+   <img id="picture" src="/carddiv/row/?deck=Poker">
+</div>
 </body>
 </html>

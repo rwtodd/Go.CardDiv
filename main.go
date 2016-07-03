@@ -1,6 +1,7 @@
 package main
 
 import (
+ 	"encoding/json"
 	"flag"
 	"image"
 	"image/draw"
@@ -14,7 +15,7 @@ import (
 	"time"
 )
 
-var local = flag.String("local", "", "serve as webserver, example: 0.0.0.0:8000")
+var local = flag.String("local", "", "serve as webserver on this localhost port (e.g., 8000)")
 
 // hold a global cached deck between requests...
 type cacheEnt struct {
@@ -91,6 +92,9 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	http.HandleFunc("/", mainHandler)
+	http.HandleFunc("/carddiv/cdiv.css", cssHandler)
+	http.HandleFunc("/carddiv/cfg", cfgHandler)
+
 	http.HandleFunc("/carddiv/row/", rowHandler)
 	http.HandleFunc("/carddiv/houses/", houseHandler)
 	http.HandleFunc("/carddiv/celtic/", celticHandler)
@@ -98,7 +102,7 @@ func main() {
 
 	var err error
 	if *local != "" {
-		err = http.ListenAndServe("localhost:8000", nil)
+		err = http.ListenAndServe("localhost:" + *local, nil)
 	} else {
 		err = fcgi.Serve(nil, nil)
 	}
@@ -109,6 +113,18 @@ func main() {
 
 func mainHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "index.html")
+}
+
+func cssHandler(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "cdiv.css")
+}
+
+func cfgHandler(w http.ResponseWriter, r *http.Request) {
+        cfg, err := json.Marshal(configurations)
+        if err != nil {
+                log.Fatal(err)
+        }
+        w.Write(cfg)
 }
 
 func getOrElse(lst []string, def string) string {
