@@ -1,7 +1,7 @@
 package main
 
 import (
- 	"encoding/json"
+	"encoding/json"
 	"flag"
 	"image"
 	"image/draw"
@@ -10,9 +10,12 @@ import (
 	"math/rand"
 	"net/http"
 	"net/http/fcgi"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/rwtodd/apputil-go/resource"
 )
 
 var local = flag.String("local", "", "serve as webserver on this localhost port (e.g., 8000)")
@@ -31,6 +34,8 @@ func requestDeck(name string) (*deck, error) {
 	var answer *deck
 	var err error
 
+	fullname := filepath.Join(rscBase, name)
+
 	deckMut.Lock()
 
 	// update a request count, which wraps at 10k
@@ -45,7 +50,7 @@ func requestDeck(name string) (*deck, error) {
 
 	ent, ok := deckCache[name]
 	if !ok {
-		answer, err = NewDeck(name)
+		answer, err = NewDeck(fullname)
 		if err == nil {
 			ent = cacheEnt{requestCount, answer}
 			deckCache[name] = ent
@@ -87,8 +92,19 @@ func requestDeck(name string) (*deck, error) {
 	return answer, err
 }
 
+// rscBase is the base path of our resources
+var rscBase string
+
 func main() {
+	var err error
 	flag.Parse()
+
+	loc := resource.NewPathLocator(nil, true)
+	rscBase, err = loc.Path("github.com/rwtodd/carddiv-go")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	rand.Seed(time.Now().UnixNano())
 
 	http.HandleFunc("/", mainHandler)
@@ -100,9 +116,8 @@ func main() {
 	http.HandleFunc("/carddiv/celtic/", celticHandler)
 	http.HandleFunc("/carddiv/tableau/", tableauHandler)
 
-	var err error
 	if *local != "" {
-		err = http.ListenAndServe("localhost:" + *local, nil)
+		err = http.ListenAndServe("localhost:"+*local, nil)
 	} else {
 		err = fcgi.Serve(nil, nil)
 	}
@@ -112,19 +127,19 @@ func main() {
 }
 
 func mainHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "index.html")
+	http.ServeFile(w, r, filepath.Join(rscBase, "index.html"))
 }
 
 func cssHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "cdiv.css")
+	http.ServeFile(w, r, filepath.Join(rscBase, "cdiv.css"))
 }
 
 func cfgHandler(w http.ResponseWriter, r *http.Request) {
-        cfg, err := json.Marshal(configurations)
-        if err != nil {
-                log.Fatal(err)
-        }
-        w.Write(cfg)
+	cfg, err := json.Marshal(configurations)
+	if err != nil {
+		log.Fatal(err)
+	}
+	w.Write(cfg)
 }
 
 func getOrElse(lst []string, def string) string {

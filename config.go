@@ -12,7 +12,7 @@ type cardConfig struct {
 }
 
 var configurations = []cardConfig{
-	{"/carddiv/row/", "Row of Cards", []string{"cards", "pct" }},
+	{"/carddiv/row/", "Row of Cards", []string{"cards", "pct"}},
 	{"/carddiv/celtic/", "Celtic Cross", []string{}},
 	{"/carddiv/houses/", "12 Astrological Houses", []string{}},
 	{"/carddiv/tableau/", "Grand Tableau", []string{}},
