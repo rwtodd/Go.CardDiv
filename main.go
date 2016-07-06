@@ -99,7 +99,7 @@ func main() {
 	var err error
 	flag.Parse()
 
-	loc := resource.NewPathLocator(nil, true)
+	loc := resource.NewPathLocator([]string{"."}, true)
 	rscBase, err = loc.Path("github.com/rwtodd/carddiv-go")
 	if err != nil {
 		log.Fatal(err)
