@@ -3,6 +3,7 @@ package main
 // a simple cache so we don't keep reloading the same deck
 
 import (
+	"path/filepath"
 	"sync"
 )
 
@@ -10,56 +11,50 @@ const (
 	safeDeck = "Poker.zip" // part of the distribution
 )
 
-type cacheEnt struct {
-	deck   *deck
-	refcnt uint32
-}
-
 var cacheLock sync.Mutex
-var cache map[string]*cacheEnt
+var latest *deck
 
-func requestDeck(name string) (answer *deck, err error) {
+func requestDeck(name string) (*deck, error) {
+	var (
+		answer   *deck
+		err      error
+		fullname = filepath.Join(rscBase, name)
+	)
+
 	cacheLock.Lock()
 
-	if cache == nil {
-		cache = make(map[string]*cacheEnt)
-	}
-
-	ent, ok := cache[name]
-	if ok {
-		answer = ent.deck
-		ent.refcnt++
-	} else {
-		answer, err = NewDeck(name)
-		if err == nil {
-			ent = &cacheEnt{deck: answer, refcnt: 1}
-			cache[name] = ent
+	// is it already our latest deck?  If so, return it.
+	if latest != nil {
+		if latest.name == fullname {
+			// the cached deck matches; return it
+			answer = latest
+		} else {
+			// it didn't match, clear it out
+			latest.Close()
+			latest = nil
 		}
 	}
+
+	if answer == nil {
+		// it wasn't in the cache, so look up the deck
+		latest, err = NewDeck(fullname)
+		if err == nil {
+			latest.Open()
+			answer = latest
+		}
+	}
+
+	// if we have an answer, Open() it on behalf of the caller
+	// so that it has an immediate reference
+	if answer != nil {
+		answer.Open()
+	}
+
 	cacheLock.Unlock()
 
-	// try to fall back on the poker deck... it's safe!
-	if err != nil && name != safeDeck {
+	if answer == nil {
 		return requestDeck(safeDeck)
 	}
 
-	return
-}
-
-func returnDeck(d *deck) {
-	cacheLock.Lock()
-
-	if ent, ok := cache[d.name]; ok {
-		if ent.refcnt <= 1 {
-			d.Close()
-			delete(cache, d.name)
-		}
-		ent.refcnt--
-	} else {
-		// we couldn't find the deck, so
-		// better close it to be on the safe side
-		d.Close()
-	}
-
-	cacheLock.Unlock()
+	return answer, err
 }

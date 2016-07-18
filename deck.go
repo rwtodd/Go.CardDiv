@@ -8,6 +8,7 @@ import (
 	"image/jpeg"
 	"math/rand"
 	"strings"
+	"sync"
 )
 
 // representation for our card deck...
@@ -17,6 +18,11 @@ type deck struct {
 	zfile *zip.ReadCloser
 	imgs  []*zip.File
 	ratio float64
+
+	// these two fields manage the resources
+	// owned by the deck
+	refcnt uint32
+	lock   sync.Mutex
 }
 
 func NewDeck(fn string) (*deck, error) {
@@ -47,7 +53,11 @@ func NewDeck(fn string) (*deck, error) {
 	}
 
 	// all is well, give back the deck..
-	return &deck{fn, zfile, imgs, rat}, nil
+	return &deck{
+		name:  fn,
+		zfile: zfile,
+		imgs:  imgs,
+		ratio: rat}, nil
 }
 
 func determineRatio(zimg *zip.File) (float64, error) {
@@ -71,7 +81,25 @@ func (dk *deck) NumCards() int { return len(dk.imgs) }
 
 func (dk *deck) CardHeight(width int) int { return int(float64(width) / dk.ratio) }
 
-func (dk *deck) Close() error { return dk.zfile.Close() }
+// grab a fresh reference to the deck
+func (dk *deck) Open() {
+	dk.lock.Lock()
+	dk.refcnt++
+	dk.lock.Unlock()
+}
+
+// release our reference to the deck, closing
+// the zip file if this is our last reference
+func (dk *deck) Close() error {
+	var err error
+	dk.lock.Lock()
+	if dk.refcnt == 1 {
+		err = dk.zfile.Close()
+	}
+	dk.refcnt--
+	dk.lock.Unlock()
+	return err
+}
 
 type cardOpts struct {
 	reversed bool
@@ -82,6 +110,9 @@ func (dk *deck) Image(which int, width int, options cardOpts) (image.Image, erro
 	if which > len(dk.imgs) {
 		return nil, fmt.Errorf("%d is greater than %d images in deck!", which, len(dk.imgs))
 	}
+
+	dk.lock.Lock()
+	defer dk.lock.Unlock()
 
 	img, err := dk.imgs[which].Open()
 	if err != nil {

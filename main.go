@@ -10,21 +10,34 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
+
+	"github.com/rwtodd/apputil-go/resource"
 )
 
 var port = flag.String("port", "8000", "serve from this localhost port")
 var help bool
 
+// rscBase is the base path of our resources
+var rscBase string
+
 func main() {
+	var err error
 	flag.BoolVar(&help, "h", false, "display this help message")
 	flag.BoolVar(&help, "help", false, "display this help message")
 	flag.Parse()
 
- 	if help { 
+	if help {
 		flag.Usage()
 		os.Exit(1)
+	}
+
+	loc := resource.NewPathLocator([]string{"."}, true)
+	rscBase, err = loc.Path("github.com/rwtodd/carddiv-go")
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	rand.Seed(time.Now().UnixNano())
@@ -38,17 +51,17 @@ func main() {
 	http.HandleFunc("/carddiv/celtic/", celticHandler)
 	http.HandleFunc("/carddiv/tableau/", tableauHandler)
 
-	if err := http.ListenAndServe("localhost:"+*port, nil); err != nil {
+	if err = http.ListenAndServe("localhost:"+*port, nil); err != nil {
 		log.Fatal(err)
 	}
 }
 
 func mainHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "index.html")
+	http.ServeFile(w, r, filepath.Join(rscBase, "index.html"))
 }
 
 func cssHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "cdiv.css")
+	http.ServeFile(w, r, filepath.Join(rscBase, "cdiv.css"))
 }
 
 func cfgHandler(w http.ResponseWriter, r *http.Request) {
@@ -87,7 +100,7 @@ func tableauHandler(w http.ResponseWriter, r *http.Request) {
 		log.Print(err)
 		return
 	}
-	defer returnDeck(deck)
+	defer deck.Close()
 
 	cardWidth := int(float64(desiredWidth) / 8.0)
 	cardHeight := deck.CardHeight(cardWidth)
@@ -164,7 +177,7 @@ func rowHandler(w http.ResponseWriter, r *http.Request) {
 		log.Print(err)
 		return
 	}
-	defer returnDeck(deck)
+	defer deck.Close()
 
 	// to account for overlap, we figure out the number of
 	// cards effectively showing.  Thus 3 cards showing at 100%
@@ -229,7 +242,7 @@ func celticHandler(w http.ResponseWriter, r *http.Request) {
 		log.Print(err)
 		return
 	}
-	defer returnDeck(deck)
+	defer deck.Close()
 
 	// the overall image is 7 cards wide and 4 tall:
 	//  0123456
@@ -342,7 +355,7 @@ func houseHandler(w http.ResponseWriter, r *http.Request) {
 		log.Print(err)
 		return
 	}
-	defer returnDeck(deck)
+	defer deck.Close()
 
 	// the overall image is 7 cards wide and 4 tall:
 	//  0123456
