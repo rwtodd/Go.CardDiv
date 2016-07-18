@@ -1,7 +1,7 @@
 package main
 
 import (
- 	"encoding/json"
+	"encoding/json"
 	"flag"
 	"image"
 	"image/draw"
@@ -9,86 +9,24 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
-	"net/http/fcgi"
+	"os"
 	"strconv"
-	"sync"
 	"time"
 )
 
-var local = flag.String("local", "", "serve as webserver on this localhost port (e.g., 8000)")
-
-// hold a global cached deck between requests...
-type cacheEnt struct {
-	rqno int
-	dck  *deck
-}
-
-var requestCount int
-var deckCache map[string]cacheEnt
-var deckMut sync.Mutex
-
-func requestDeck(name string) (*deck, error) {
-	var answer *deck
-	var err error
-
-	deckMut.Lock()
-
-	// update a request count, which wraps at 10k
-	requestCount++
-	if requestCount > 9999 {
-		requestCount = 1
-	}
-
-	if deckCache == nil {
-		deckCache = make(map[string]cacheEnt)
-	}
-
-	ent, ok := deckCache[name]
-	if !ok {
-		answer, err = NewDeck(name)
-		if err == nil {
-			ent = cacheEnt{requestCount, answer}
-			deckCache[name] = ent
-		}
-	}
-
-	// update the request number...
-	if err == nil {
-		ent.rqno = requestCount
-		deckCache[name] = ent
-
-		// record the deck to return:
-		answer = ent.dck
-	}
-
-	// clean out any old decks...
-	for key, value := range deckCache {
-
-		var difference int // abs difference, rqno and requestCount
-		if value.rqno <= requestCount {
-			difference = requestCount - value.rqno
-		} else {
-			difference = (9999 + requestCount) - value.rqno
-		}
-
-		if difference > 10 {
-			value.dck.Close()
-			delete(deckCache, key)
-		}
-
-	}
-	deckMut.Unlock()
-
-	// try to fall back on the poker deck... it's safe!
-	if err != nil && name != "Poker.zip" {
-		answer, err = requestDeck("Poker.zip")
-	}
-
-	return answer, err
-}
+var port = flag.String("port", "8000", "serve from this localhost port")
+var help bool
 
 func main() {
+	flag.BoolVar(&help, "h", false, "display this help message")
+	flag.BoolVar(&help, "help", false, "display this help message")
 	flag.Parse()
+
+ 	if help { 
+		flag.Usage()
+		os.Exit(1)
+	}
+
 	rand.Seed(time.Now().UnixNano())
 
 	http.HandleFunc("/", mainHandler)
@@ -100,13 +38,7 @@ func main() {
 	http.HandleFunc("/carddiv/celtic/", celticHandler)
 	http.HandleFunc("/carddiv/tableau/", tableauHandler)
 
-	var err error
-	if *local != "" {
-		err = http.ListenAndServe("localhost:" + *local, nil)
-	} else {
-		err = fcgi.Serve(nil, nil)
-	}
-	if err != nil {
+	if err := http.ListenAndServe("localhost:"+*port, nil); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -120,11 +52,11 @@ func cssHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func cfgHandler(w http.ResponseWriter, r *http.Request) {
-        cfg, err := json.Marshal(configurations)
-        if err != nil {
-                log.Fatal(err)
-        }
-        w.Write(cfg)
+	cfg, err := json.Marshal(configurations)
+	if err != nil {
+		log.Fatal(err)
+	}
+	w.Write(cfg)
 }
 
 func getOrElse(lst []string, def string) string {
@@ -155,6 +87,7 @@ func tableauHandler(w http.ResponseWriter, r *http.Request) {
 		log.Print(err)
 		return
 	}
+	defer returnDeck(deck)
 
 	cardWidth := int(float64(desiredWidth) / 8.0)
 	cardHeight := deck.CardHeight(cardWidth)
@@ -231,6 +164,7 @@ func rowHandler(w http.ResponseWriter, r *http.Request) {
 		log.Print(err)
 		return
 	}
+	defer returnDeck(deck)
 
 	// to account for overlap, we figure out the number of
 	// cards effectively showing.  Thus 3 cards showing at 100%
@@ -295,6 +229,7 @@ func celticHandler(w http.ResponseWriter, r *http.Request) {
 		log.Print(err)
 		return
 	}
+	defer returnDeck(deck)
 
 	// the overall image is 7 cards wide and 4 tall:
 	//  0123456
@@ -407,6 +342,7 @@ func houseHandler(w http.ResponseWriter, r *http.Request) {
 		log.Print(err)
 		return
 	}
+	defer returnDeck(deck)
 
 	// the overall image is 7 cards wide and 4 tall:
 	//  0123456
