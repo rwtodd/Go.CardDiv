@@ -52,7 +52,10 @@ func requestDeck(name string) (*deck, error) {
 
 	cacheLock.Unlock()
 
-	if answer == nil {
+	if answer == nil && name != safeDeck {
+		// we couldn't find the requested deck,
+		// so fall back on the one that should always
+		// be there
 		return requestDeck(safeDeck)
 	}
 
