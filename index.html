@@ -1,36 +1,18 @@
 <html>
 <head><title>Card Divination</title>
+<link rel="stylesheet" href="//code.jquery.com/ui/1.12.0/themes/base/jquery-ui.css">
 <link rel="stylesheet" type="text/css" href="/carddiv/cdiv.css">
+<script type="text/javascript" src="https://code.jquery.com/jquery-3.1.0.min.js"></script>
+<script type="text/javascript" src="https://code.jquery.com/ui/1.12.0/jquery-ui.js"></script>
 <script type="text/javascript">
 var optparm = new Map();
-function get_config() {
-  var xmlhttp = new XMLHttpRequest();
-  xmlhttp.onreadystatechange = function() {
-     if(xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-         var config = JSON.parse(xmlhttp.responseText);
-         var selections = document.getElementById("userInput").elements['layout'];
-         for(var i = 0; i < config.length; i++) {
-             selections.options.add(new Option(config[i].Display, config[i].ID));
-             optparm.set(config[i].ID, config[i].Params)
-         }
-	 changeLayout();
-     }
-  };
-  xmlhttp.open("GET", "/carddiv/cfg", true);
-  xmlhttp.send();
-}
-window.onload = get_config;
-
 function changeLayout() {
   // when layouts change, alter the visible optional params...
   var theForm = document.getElementById("userInput").elements;
   var selection = theForm['layout'].value;
 
   // turn off all optional params first...
-  var opts = document.getElementsByClassName("optional");
-  for (var i = 0; i < opts.length; i++) {
-    opts[i].style.display = "none";
-  }
+  $(".optional").hide();
 
   // now turn on all the enabled params
   var parmlist = optparm.get(selection);
@@ -49,6 +31,20 @@ function draw() {
        "&rev=" + form.elements['rev'].value; 
    return false;
 } 
+
+$(document).ready(function() {
+
+    $( "#controls" ).resizable({handles: "e"});
+
+    $.getJSON('/carddiv/cfg', function(data) {
+         var selections = document.getElementById("userInput").elements['layout'];
+         for(var i = 0; i < data.length; i++) {
+             selections.options.add(new Option(data[i].Display, data[i].ID));
+             optparm.set(data[i].ID, data[i].Params)
+         }
+	 changeLayout();
+    });
+});
 </script>
 </head>
 <body>
