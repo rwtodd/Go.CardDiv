@@ -20,8 +20,8 @@ import (
 var port = flag.String("port", "8000", "serve from this localhost port")
 var help bool
 
-// rscBase is the base path of our resources
-var rscBase string
+// rscLoc is the locator for our resources
+var rscBase resource.Locator
 
 func main() {
 	var err error
@@ -34,11 +34,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	loc := resource.NewPathLocator([]string{"."}, true)
-	rscBase, err = loc.Path("github.com/rwtodd/carddiv/ui")
-	if err != nil {
-		log.Fatal(err)
-	}
+	rscBase = resource.NewPathLocator([]string{"."}, filepath.Join("github.com", "rwtodd", "carddiv", "ui"))
 
 	rand.Seed(time.Now().UnixNano())
 
@@ -57,11 +53,19 @@ func main() {
 }
 
 func mainHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, filepath.Join(rscBase, "index.html"))
+	if index, err := rscBase.Path("index.html"); err == nil {
+		http.ServeFile(w, r, index)
+	} else {
+		log.Fatal(err)
+	}
 }
 
 func cssHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, filepath.Join(rscBase, "cdiv.css"))
+	if cdiv, err := rscBase.Path("cdiv.css"); err == nil {
+		http.ServeFile(w, r, cdiv)
+	} else {
+		log.Fatal(err)
+	}
 }
 
 func cfgHandler(w http.ResponseWriter, r *http.Request) {

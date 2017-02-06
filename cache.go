@@ -2,10 +2,7 @@ package main
 
 // a simple cache so we don't keep reloading the same deck
 
-import (
-	"path/filepath"
-	"sync"
-)
+import "sync"
 
 const (
 	safeDeck = "Poker.zip" // part of the distribution
@@ -16,10 +13,14 @@ var latest *deck
 
 func requestDeck(name string) (*deck, error) {
 	var (
-		answer   *deck
-		err      error
-		fullname = filepath.Join(rscBase, name)
+		answer *deck
+		err    error
 	)
+
+	fullname, err := rscBase.Path(name)
+	if err != nil {
+		return nil, err
+	}
 
 	cacheLock.Lock()
 
