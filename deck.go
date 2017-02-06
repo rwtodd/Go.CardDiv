@@ -3,12 +3,13 @@ package main
 import (
 	"archive/zip"
 	"fmt"
-	"github.com/nfnt/resize"
 	"image"
 	"image/jpeg"
 	"math/rand"
 	"strings"
 	"sync"
+
+	"github.com/nfnt/resize"
 )
 
 // representation for our card deck...
@@ -25,7 +26,7 @@ type deck struct {
 	lock   sync.Mutex
 }
 
-func NewDeck(fn string) (*deck, error) {
+func newDeck(fn string) (*deck, error) {
 	zfile, err := zip.OpenReader(fn)
 	if err != nil {
 		return nil, err
@@ -45,7 +46,7 @@ func NewDeck(fn string) (*deck, error) {
 	// now grab the aspect ratio of the files...
 	// assuming that one of them is as good as any other...
 	if len(imgs) < 1 {
-		return nil, fmt.Errorf("No images in the zip file!")
+		return nil, fmt.Errorf("newdeck: No images in the zip file")
 	}
 	rat, err := determineRatio(imgs[0])
 	if err != nil {
@@ -108,7 +109,7 @@ type cardOpts struct {
 
 func (dk *deck) Image(which int, width int, options cardOpts) (image.Image, error) {
 	if which > len(dk.imgs) {
-		return nil, fmt.Errorf("%d is greater than %d images in deck!", which, len(dk.imgs))
+		return nil, fmt.Errorf("%d is greater than %d images in deck", which, len(dk.imgs))
 	}
 
 	dk.lock.Lock()
@@ -144,7 +145,7 @@ func (dk *deck) Image(which int, width int, options cardOpts) (image.Image, erro
 func (dk *deck) Shuffled(howMany int) ([]int, error) {
 	dsize := len(dk.imgs)
 	if howMany > dsize {
-		return nil, fmt.Errorf("Not enough cards in deck to get %d.", howMany)
+		return nil, fmt.Errorf("Not enough cards in deck to get %d", howMany)
 	}
 	shuffled := rand.Perm(dsize)
 	return shuffled[:howMany], nil

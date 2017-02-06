@@ -35,7 +35,7 @@ func main() {
 	}
 
 	loc := resource.NewPathLocator([]string{"."}, true)
-	rscBase, err = loc.Path("github.com/rwtodd/carddiv-go")
+	rscBase, err = loc.Path("github.com/rwtodd/carddiv/ui")
 	if err != nil {
 		log.Fatal(err)
 	}

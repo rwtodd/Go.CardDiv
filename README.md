@@ -9,10 +9,10 @@ oracle decks.
 
 Here's an example "Celtic Cross" layout produced by the tool:
 
-![ccross](example_ccross.jpg)
+![ccross](examples/example_ccross.jpg)
 
 The user interface is very simple: just a control panel on the left. 
 
-![ui](example_ui.PNG)
+![ui](examples/example_ui.PNG)
 
 

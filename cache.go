@@ -37,7 +37,7 @@ func requestDeck(name string) (*deck, error) {
 
 	if answer == nil {
 		// it wasn't in the cache, so look up the deck
-		latest, err = NewDeck(fullname)
+		latest, err = newDeck(fullname)
 		if err == nil {
 			latest.Open()
 			answer = latest
