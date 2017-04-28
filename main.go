@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/rwtodd/apputil/resource"
+	"github.com/rwtodd/Go.AppUtil/resource"
 )
 
 var port = flag.String("port", "8000", "serve from this localhost port")
